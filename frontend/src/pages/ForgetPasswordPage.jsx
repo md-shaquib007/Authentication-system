@@ -9,7 +9,7 @@ const ForgetPasswordPage = () => {
     const [mail, setMail] = useState('');
     const [isSubmitted, setIsSubmitted] = useState(false);
 
-    const { isLoading, forgetPassword } = useAuthStore();
+    const { isLoading, forgetPassword, error } = useAuthStore();
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -48,6 +48,12 @@ const ForgetPasswordPage = () => {
                             value={mail}
                             onChange={(e) => setMail(e.target.value)}
                         />
+
+                        {error && (
+                            <p className="text-red-500 font-semibold text-center text-sm mb-4">
+                                {error}
+                            </p>
+                        )}
 
                         <motion.button
                             whileHover={{ scale: 1.05 }}

@@ -15,10 +15,6 @@ const register = async (req, res) => {
     const { username, email, password } = req.body;
 
     try {
-        //Checking if fields are available
-        if (!username || !email || !password) {
-            return res.status(400).json({ message: `All fields are required` });
-        }
 
         const existingUser = await User.findOne({ email });
         if (existingUser) {
@@ -46,8 +42,26 @@ const register = async (req, res) => {
 
         await newUser.save();
 
-        //JWT
+        // JWT (Generate both Refresh and Access Tokens)
         generateRefreshTokenAndSetCookie(res, newUser._id);
+
+        const accessToken = jwt.sign(
+            {
+                id: newUser._id,
+                email: newUser.email,
+            },
+            process.env.ACCESS_TOKEN_SECRET,
+            {
+                expiresIn: process.env.ACCESS_TOKEN_EXPIRY || '12h',
+            }
+        );
+
+        res.cookie('accessToken', accessToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax',
+            maxAge: 12 * 60 * 60 * 1000,
+        });
 
         //VerifyEmail
         await sendVerificationEmail(newUser.email, verificationToken);
@@ -92,11 +106,13 @@ const VerifyEmail = async (req, res) => {
 
         await sendWelcomeEmail(user.email, user.username);
 
-        res.status(201).json({
+        res.status(200).json({
             success: true,
-            message: `Email verified succesfully`,
-            ...user._doc,
-            password: undefined,
+            message: `Email verified successfully`,
+            user: {
+                ...user._doc,
+                password: undefined,
+            },
         });
     } catch (error) {
         res.status(400).json({
@@ -109,10 +125,6 @@ const login = async (req, res) => {
     const { email, password } = req.body;
 
     try {
-        //check if fields contains data
-        if (!email || !password) {
-            return res.status(400).json({ message: `All fields are required` });
-        }
 
         const user = await User.findOne({ email });
         if (!user) {
@@ -139,9 +151,12 @@ const login = async (req, res) => {
 
         await user.save();
 
+        // Set refresh token cookie as well
+        generateRefreshTokenAndSetCookie(res, user._id);
+
         res.cookie('accessToken', accessToken, {
             httpOnly: true,
-            secure: false,
+            secure: process.env.NODE_ENV === 'production',
             sameSite: 'lax',
             maxAge: 12 * 60 * 60 * 1000,
         })
@@ -279,7 +294,7 @@ const refreshServer = async (req, res) => {
         console.log('Refreshed user info sent, refresh successfull');
         res.status(200).json({
             success: true,
-            ...user._doc,
+            user: user,
         });
     } catch (error) {
         console.log(error);

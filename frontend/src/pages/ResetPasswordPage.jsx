@@ -4,10 +4,11 @@ import { useAuthStore } from '../store/authStore';
 import { useNavigate, useParams } from 'react-router-dom';
 import Input from '../component/Input';
 import { Lock } from 'lucide-react';
+import toast from 'react-hot-toast';
 
-const ResetPasswordPage = async () => {
-    const [password, setPassword] = useState();
-    const [cnfPassword, setCnfPassword] = useState();
+const ResetPasswordPage = () => {
+    const [password, setPassword] = useState('');
+    const [cnfPassword, setCnfPassword] = useState('');
 
     const { isLoading, error, message, resetPassword } = useAuthStore();
 
@@ -18,21 +19,19 @@ const ResetPasswordPage = async () => {
         e.preventDefault();
 
         if (password !== cnfPassword) {
-            alert('Passwords do not match');
+            toast.error('Passwords do not match');
             return;
         }
 
         try {
             const response = await resetPassword(token, password);
-            toast.success(response.data.message);
+            toast.success(response?.message || 'Password reset successfully');
             setTimeout(() => {
                 navigate('/login');
             }, 2000);
-
-            console.log(response);
-        } catch (error) {
-            toast.error(error.message || 'Error resetting password');
-            console.log(error);
+        } catch (err) {
+            toast.error(err?.response?.data?.message || 'Error resetting password');
+            console.log(err);
         }
     };
 

@@ -145,7 +145,7 @@ export const passwordResetRequestTemplate = (email, resetUrl) => {
               </div>
 
               <p style="font-size:14px; color:#6c757d;">
-                This link will expire in <strong>10 minutes</strong>.
+                This link will expire in <strong>1 hour</strong>.
               </p>
 
               <p style="font-size:14px; color:#6c757d;">
