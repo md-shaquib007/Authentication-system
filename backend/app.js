@@ -3,8 +3,12 @@ import dotenv from 'dotenv';
 import cookieParser from 'cookie-parser';
 dotenv.config();
 import authRoutes from './route/authRoutes.js';
+import dbConnect from './config/dbConnect.js';
 import cors from 'cors';
 import path from 'path';
+
+//Database Connection (Required for serverless environments)
+dbConnect();
 
 //Express ref
 const app = express();

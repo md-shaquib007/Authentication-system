@@ -121,3 +121,20 @@ The application uses Jest + Babel to handle ES module imports during test runs.
 # Run unit and integration tests
 npm test
 ```
+
+---
+
+## ☁️ Vercel Deployment
+
+This project contains a configured [vercel.json](file:///D:/MERN_Stack_Journey/MERN_Auth/vercel.json) file to deploy both the Express API and the React frontend seamlessly.
+
+### Configuration Details:
+- **Backend API**: The Express app in [backend/app.js](file:///D:/MERN_Stack_Journey/MERN_Auth/backend/app.js) is compiled as a serverless function (`@vercel/node`) and handles all `/api/*` traffic.
+- **Frontend SPA**: The built assets from the `frontend/dist` directory are served statically, with client-side routing fallback setup to support React Router natively on page refreshes.
+
+### How to Deploy:
+1. Connect your GitHub repository to Vercel.
+2. In the Vercel Dashboard, import the project.
+3. Configure your Environment Variables in the Vercel project settings (see the [Environment Variables](#2-environment-variables-setup) section).
+4. Vercel will automatically detect the configuration and build + deploy the application!
+

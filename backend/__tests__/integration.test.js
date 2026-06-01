@@ -5,8 +5,8 @@ import User from '../model/userModel.js';
 import bcrypt from 'bcryptjs';
 
 jest.mock('../model/userModel.js');
-
 jest.mock('bcryptjs');
+jest.mock('../config/dbConnect.js', () => jest.fn());
 
 jest.mock('../mailtrap/email.js', () => ({
     sendVerificationEmail: jest.fn().mockResolvedValue(true),
