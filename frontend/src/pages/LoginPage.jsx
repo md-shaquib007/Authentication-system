@@ -5,24 +5,36 @@ import { Link } from 'react-router-dom';
 import Input from '../component/Input';
 import { useAuthStore } from '../store/authStore';
 import { useNavigate } from 'react-router-dom';
+import { isValidEmail } from '../util/validation';
+import toast from 'react-hot-toast';
 
 const LoginPage = () => {
     const [mail, setMail] = useState('');
     const [password, setPassword] = useState('');
+    const [fieldErrors, setFieldErrors] = useState({});
 
-    const { isLoading, error, login } = useAuthStore();
+    const { isLoading, loginError, login } = useAuthStore();
     const navigate = useNavigate();
 
     const handleLogin = async (e) => {
         e.preventDefault();
 
+        const errors = {};
+        if (!isValidEmail(mail)) errors.email = 'Enter a valid email address';
+        if (!password) errors.password = 'Password is required';
+
+        if (Object.keys(errors).length > 0) {
+            setFieldErrors(errors);
+            return;
+        }
+
+        setFieldErrors({});
+
         try {
-            await login(mail, password);
-            if (!error) {
-                navigate('/');
-            }
-        } catch (error) {
-            console.log(error);
+            const user = await login(mail, password);
+            navigate(user?.isVerified ? '/' : '/verifyEmail');
+        } catch {
+            toast.error('Login failed');
         }
     };
 
@@ -38,41 +50,50 @@ const LoginPage = () => {
                     Welcome Back
                 </h2>
 
-                <form onSubmit={handleLogin}>
+                <form onSubmit={handleLogin} noValidate>
                     <Input
                         icon={Mail}
+                        label="Email"
+                        id="login-email"
                         type="email"
-                        placeholder="Email"
+                        placeholder="you@example.com"
                         value={mail}
                         onChange={(e) => setMail(e.target.value)}
+                        error={fieldErrors.email}
+                        autoComplete="email"
                     />
 
                     <Input
                         icon={Lock}
+                        label="Password"
+                        id="login-password"
                         type="password"
-                        placeholder="Password"
+                        placeholder="Enter your password"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
+                        error={fieldErrors.password}
+                        showPasswordToggle
+                        autoComplete="current-password"
                     />
 
-                    <div className="flex items-center mb-6">
+                    <div className="flex items-center mb-6 -mt-2">
                         <Link
                             to="/forgetPassword"
                             className="text-sm text-green-400 hover:underline"
                         >
-                            Forget Password
+                            Forgot Password?
                         </Link>
                     </div>
 
-                    {error && (
-                        <p className="mb-2 text-red-500 font-semibold">
-                            {error}
+                    {loginError && (
+                        <p className="mb-2 text-red-500 font-semibold" role="alert">
+                            {loginError}
                         </p>
                     )}
 
                     <motion.button
                         type="submit"
-                        className="mt-5 w-full py-3 px-4 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold rounded-lg shadow-lg hover:from-green-600 hover:to-emerald-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 focus:ring-offset-gray-900 transition duration-200"
+                        className="mt-2 w-full py-3 px-4 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold rounded-lg shadow-lg hover:from-green-600 hover:to-emerald-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 focus:ring-offset-gray-900 transition duration-200"
                         whileHover={{ scale: 1.02 }}
                         whileTap={{ scale: 0.98 }}
                         disabled={isLoading}
@@ -93,7 +114,7 @@ const LoginPage = () => {
                         to="/signup"
                         className="text-green-400 hover:underline"
                     >
-                        Signup
+                        Sign up
                     </Link>
                 </p>
             </div>

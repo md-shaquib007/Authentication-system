@@ -2,14 +2,22 @@ import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 import { login, logout } from '../controller/authController.js';
 import User from '../model/userModel.js';
 import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
-import { generateRefreshTokenAndSetCookie } from '../util/generateRefreshTokenAndSetCookie.js';
+import {
+    generateRefreshTokenAndSetCookie,
+    generateAccessToken,
+    setAccessTokenCookie,
+    clearAuthCookies,
+} from '../util/tokenHelpers.js';
 
 jest.mock('../model/userModel.js');
 jest.mock('bcryptjs');
-jest.mock('jsonwebtoken');
-jest.mock('../util/generateRefreshTokenAndSetCookie.js');
-jest.mock('../mailtrap/email.js', () => ({
+jest.mock('../util/tokenHelpers.js', () => ({
+    generateRefreshTokenAndSetCookie: jest.fn(),
+    generateAccessToken: jest.fn(),
+    setAccessTokenCookie: jest.fn(),
+    clearAuthCookies: jest.fn(),
+}));
+jest.mock('../email/email.js', () => ({
     sendVerificationEmail: jest.fn(),
     sendWelcomeEmail: jest.fn(),
     sendPasswordSuccessEmail: jest.fn(),
@@ -66,21 +74,27 @@ describe('authController - login', () => {
             _id: 'userId123',
             email: 'test@example.com',
             password: 'hashedpassword',
+            tokenVersion: 0,
             save: jest.fn().mockResolvedValue(true),
-            _doc: {
+            toObject: jest.fn().mockReturnValue({
                 _id: 'userId123',
                 email: 'test@example.com',
-            },
+                isVerified: true,
+            }),
         };
         User.findOne.mockResolvedValue(mockUser);
         bcrypt.compare.mockResolvedValue(true);
-        jwt.sign.mockReturnValue('mockAccessToken');
+        generateAccessToken.mockReturnValue('mockAccessToken');
 
         await login(req, res);
 
         expect(mockUser.save).toHaveBeenCalled();
-        expect(generateRefreshTokenAndSetCookie).toHaveBeenCalledWith(res, 'userId123');
-        expect(res.cookie).toHaveBeenCalledWith('accessToken', 'mockAccessToken', expect.any(Object));
+        expect(generateRefreshTokenAndSetCookie).toHaveBeenCalledWith(
+            res,
+            'userId123',
+            0
+        );
+        expect(setAccessTokenCookie).toHaveBeenCalledWith(res, 'mockAccessToken');
         expect(res.status).toHaveBeenCalledWith(200);
         expect(res.json).toHaveBeenCalledWith({
             success: true,
@@ -88,6 +102,7 @@ describe('authController - login', () => {
             user: {
                 _id: 'userId123',
                 email: 'test@example.com',
+                isVerified: true,
             },
         });
     });
@@ -104,7 +119,6 @@ describe('authController - logout', () => {
         res = {
             status: jest.fn().mockReturnThis(),
             json: jest.fn(),
-            clearCookie: jest.fn().mockReturnThis(),
         };
         jest.clearAllMocks();
     });
@@ -115,8 +129,7 @@ describe('authController - logout', () => {
         await logout(req, res);
 
         expect(User.findByIdAndUpdate).toHaveBeenCalledWith('userId123', expect.any(Object));
-        expect(res.clearCookie).toHaveBeenCalledWith('accessToken', expect.any(Object));
-        expect(res.clearCookie).toHaveBeenCalledWith('refreshToken', expect.any(Object));
+        expect(clearAuthCookies).toHaveBeenCalledWith(res);
         expect(res.status).toHaveBeenCalledWith(200);
         expect(res.json).toHaveBeenCalledWith({ message: 'User logged out successfully' });
     });

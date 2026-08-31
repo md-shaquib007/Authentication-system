@@ -43,3 +43,13 @@ export const forgetPasswordSchema = z.object({
 export const resetPasswordSchema = z.object({
     password: passwordSchema,
 });
+
+export const changePasswordSchema = z
+    .object({
+        currentPassword: z.string().min(1, 'Current password is required'),
+        newPassword: passwordSchema,
+    })
+    .refine((data) => data.currentPassword !== data.newPassword, {
+        message: 'New password must be different from current password',
+        path: ['newPassword'],
+    });

@@ -1,23 +1,25 @@
 import { create } from 'zustand';
-import axios from 'axios';
-
-const API_URL = import.meta.env.MODE === 'development' ? 'http://localhost:5000/api/auth' : '/api/auth';
-
-// allow cookies (httpOnly refresh token)
-axios.defaults.withCredentials = true;
+import axios, { API_URL } from '../util/api.js';
 
 export const useAuthStore = create((set) => ({
-    // ---------------- STATE ----------------
     user: null,
     isAuthenticated: false,
     isLoading: false,
+    isLoggingOut: false,
+    isChangingPassword: false,
     isCheckingAuth: true,
-    error: null,
+    signupError: null,
+    loginError: null,
+    verifyError: null,
+    forgetPasswordError: null,
+    resetPasswordError: null,
+    changePasswordError: null,
     message: null,
 
-    // ---------------- SIGNUP ----------------
+    clearAuthError: (field) => set({ [field]: null }),
+
     signup: async (email, password, username) => {
-        set({ isLoading: true, error: null });
+        set({ isLoading: true, signupError: null });
 
         try {
             const response = await axios.post(`${API_URL}/signup`, {
@@ -26,43 +28,44 @@ export const useAuthStore = create((set) => ({
                 username,
             });
 
-            const user = response?.data?.user || response?.data;
+            const user = response?.data?.user;
 
             set({
                 user,
                 isAuthenticated: true,
                 isLoading: false,
             });
+            return user;
         } catch (error) {
             set({
                 user: null,
                 isAuthenticated: false,
-                error: error?.response?.data?.message || 'Signup failed',
+                signupError: error?.response?.data?.message || 'Signup failed',
                 isLoading: false,
             });
             throw error;
         }
     },
 
-    // ---------------- VERIFY EMAIL ----------------
     verifyMail: async (code) => {
-        set({ isLoading: true, error: null });
+        set({ isLoading: true, verifyError: null });
 
         try {
             const response = await axios.post(`${API_URL}/verifyEmail`, {
                 code,
             });
 
-            const user = response?.data?.user || response?.data;
+            const user = response?.data?.user;
 
             set({
                 user,
                 isAuthenticated: true,
                 isLoading: false,
             });
+            return user;
         } catch (error) {
             set({
-                error:
+                verifyError:
                     error?.response?.data?.message ||
                     'Email verification failed',
                 isLoading: false,
@@ -71,9 +74,26 @@ export const useAuthStore = create((set) => ({
         }
     },
 
-    // ---------------- LOGIN ----------------
+    resendVerification: async () => {
+        set({ isLoading: true, verifyError: null });
+
+        try {
+            const response = await axios.post(`${API_URL}/resendVerification`);
+            set({ isLoading: false });
+            return response.data;
+        } catch (error) {
+            set({
+                verifyError:
+                    error?.response?.data?.message ||
+                    'Failed to resend verification code',
+                isLoading: false,
+            });
+            throw error;
+        }
+    },
+
     login: async (email, password) => {
-        set({ isLoading: true, error: null });
+        set({ isLoading: true, loginError: null });
 
         try {
             const response = await axios.post(`${API_URL}/login`, {
@@ -81,67 +101,79 @@ export const useAuthStore = create((set) => ({
                 password,
             });
 
-            const user = response?.data?.user || response?.data;
+            const user = response?.data?.user;
 
             set({
                 user,
                 isAuthenticated: true,
                 isLoading: false,
             });
+            return user;
         } catch (error) {
             set({
                 user: null,
                 isAuthenticated: false,
-                error: error?.response?.data?.message || 'Login failed',
+                loginError: error?.response?.data?.message || 'Login failed',
                 isLoading: false,
             });
             throw error;
         }
     },
 
-    // ---------------- CHECK AUTH (REFRESH) ----------------
     checkAuth: async () => {
-        set({ isCheckingAuth: true, error: null });
+        set({ isCheckingAuth: true });
 
-        try {
-            const response = await axios.get(`${API_URL}/refreshServer`);
-
-            const user = response?.data?.user || response?.data;
-
-            if (!user) throw new Error('No user found');
-
+        const setAuthenticated = (user) => {
             set({
                 user,
                 isAuthenticated: true,
                 isCheckingAuth: false,
             });
-        } catch (error) {
+        };
+
+        const setUnauthenticated = () => {
             set({
                 user: null,
                 isAuthenticated: false,
                 isCheckingAuth: false,
             });
+        };
+
+        try {
+            const response = await axios.get(`${API_URL}/refreshServer`);
+            const user = response?.data?.user;
+            if (!user) throw new Error('No user found');
+            setAuthenticated(user);
+        } catch {
+            try {
+                const response = await axios.post(`${API_URL}/refresh`);
+                const user = response?.data?.user;
+                if (!user) throw new Error('No user found');
+                setAuthenticated(user);
+            } catch {
+                setUnauthenticated();
+            }
         }
     },
 
-    // ---------------- LOGOUT ----------------
     logout: async () => {
+        set({ isLoggingOut: true });
+
         try {
             await axios.post(`${API_URL}/logout`);
         } catch (error) {
-            // even if API fails, clear frontend state
             console.error('Logout failed:', error);
         } finally {
             set({
                 user: null,
                 isAuthenticated: false,
+                isLoggingOut: false,
             });
         }
     },
 
-    // ---------------- FORGET PASSWORD ----------------
     forgetPassword: async (email) => {
-        set({ isLoading: true, error: null, message: null });
+        set({ isLoading: true, forgetPasswordError: null, message: null });
 
         try {
             const response = await axios.post(`${API_URL}/forgetPassword`, {
@@ -155,7 +187,7 @@ export const useAuthStore = create((set) => ({
             return response.data;
         } catch (error) {
             set({
-                error:
+                forgetPasswordError:
                     error?.response?.data?.message ||
                     'Failed to send reset email',
                 isLoading: false,
@@ -164,9 +196,8 @@ export const useAuthStore = create((set) => ({
         }
     },
 
-    // ---------------- RESET PASSWORD ----------------
     resetPassword: async (token, password) => {
-        set({ isLoading: true, error: null, message: null });
+        set({ isLoading: true, resetPasswordError: null, message: null });
 
         try {
             const response = await axios.post(
@@ -177,13 +208,42 @@ export const useAuthStore = create((set) => ({
             set({
                 message: response?.data?.message,
                 isLoading: false,
+                user: null,
+                isAuthenticated: false,
             });
             return response.data;
         } catch (error) {
             set({
-                error:
+                resetPasswordError:
                     error?.response?.data?.message || 'Password reset failed',
                 isLoading: false,
+            });
+            throw error;
+        }
+    },
+
+    changePassword: async (currentPassword, newPassword) => {
+        set({ isChangingPassword: true, changePasswordError: null });
+
+        try {
+            const response = await axios.post(`${API_URL}/changePassword`, {
+                currentPassword,
+                newPassword,
+            });
+
+            const user = response?.data?.user;
+
+            set({
+                user,
+                isChangingPassword: false,
+            });
+            return response.data;
+        } catch (error) {
+            set({
+                changePasswordError:
+                    error?.response?.data?.message ||
+                    'Failed to change password',
+                isChangingPassword: false,
             });
             throw error;
         }

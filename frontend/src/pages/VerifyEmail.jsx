@@ -1,22 +1,37 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { Loader } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
+import { maskEmail } from '../util/validation';
 import toast from 'react-hot-toast';
+
+const RESEND_COOLDOWN = 60;
 
 const VerifyEmail = () => {
     const [code, setCode] = useState(['', '', '', '', '', '']);
+    const [cooldown, setCooldown] = useState(0);
     const inputRefs = useRef([]);
     const navigate = useNavigate();
 
-    const { error, isLoading, verifyMail } = useAuthStore();
+    const { user, verifyError, isLoading, verifyMail, resendVerification, logout } =
+        useAuthStore();
+
+    useEffect(() => {
+        if (cooldown <= 0) return;
+
+        const timer = setInterval(() => {
+            setCooldown((prev) => prev - 1);
+        }, 1000);
+
+        return () => clearInterval(timer);
+    }, [cooldown]);
 
     const handleChange = (index, value) => {
         const newCode = [...code];
 
-        // Handle paste
         if (value.length > 1) {
-            const pasted = value.slice(0, 6).split('');
+            const pasted = value.replace(/\D/g, '').slice(0, 6).split('');
             for (let i = 0; i < 6; i++) {
                 newCode[i] = pasted[i] || '';
             }
@@ -26,6 +41,8 @@ const VerifyEmail = () => {
             inputRefs.current[nextIndex]?.focus();
             return;
         }
+
+        if (value && !/^\d$/.test(value)) return;
 
         newCode[index] = value;
         setCode(newCode);
@@ -60,20 +77,45 @@ const VerifyEmail = () => {
         }
     };
 
+    const handleResend = async () => {
+        if (cooldown > 0 || isLoading) return;
+
+        try {
+            const data = await resendVerification();
+            toast.success(data?.message || 'New code sent');
+            setCooldown(RESEND_COOLDOWN);
+            setCode(['', '', '', '', '', '']);
+            inputRefs.current[0]?.focus();
+        } catch (err) {
+            toast.error(err?.response?.data?.message || 'Failed to resend code');
+        }
+    };
+
+    const handleLogout = async () => {
+        await logout();
+        navigate('/login');
+    };
+
     return (
-        <div className="bg-gray-900 rounded-3xl m-1 p-1 flex items-center justify-center">
-            <motion.div
-                initial={{ opacity: 0, y: -30 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6 }}
-                className="w-full max-w-md bg-white/5 backdrop-blur-2xl border border-white/10 rounded-3xl shadow-2xl p-10"
-            >
+        <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="max-w-md w-full bg-gray-800 bg-opacity-50 backdrop-filter backdrop-blur-xl rounded-2xl shadow-xl overflow-hidden"
+        >
+            <div className="p-8">
                 <div className="text-center mb-8">
-                    <h2 className="text-4xl font-bold text-white mb-3">
+                    <h2 className="text-3xl font-bold mb-3 bg-gradient-to-r from-green-400 to-emerald-500 text-transparent bg-clip-text">
                         Verify Email
                     </h2>
                     <p className="text-gray-400 text-sm">
-                        Enter the 6-digit code sent to your email
+                        We sent a 6-digit code to{' '}
+                        <span className="text-green-400 font-medium">
+                            {maskEmail(user?.email)}
+                        </span>
+                    </p>
+                    <p className="text-gray-500 text-xs mt-2">
+                        Code expires in 24 hours
                     </p>
                 </div>
 
@@ -82,45 +124,72 @@ const VerifyEmail = () => {
                         e.preventDefault();
                         handleSubmit();
                     }}
-                    className="space-y-8"
+                    className="space-y-6"
                 >
-                    {/* OTP Inputs */}
-                    <div className="flex justify-center gap-3">
+                    <div
+                        className="flex justify-center gap-3"
+                        role="group"
+                        aria-label="Verification code"
+                    >
                         {code.map((digit, index) => (
                             <input
                                 key={index}
                                 type="text"
-                                maxLength="1"
+                                inputMode="numeric"
+                                maxLength="6"
                                 value={digit}
                                 ref={(el) => (inputRefs.current[index] = el)}
                                 onChange={(e) =>
                                     handleChange(index, e.target.value)
                                 }
                                 onKeyDown={(e) => handleKeyDown(index, e)}
-                                className="w-14 h-14 text-center text-2xl font-semibold bg-white/10 text-white border border-white/20 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 focus:outline-none transition-all duration-200"
+                                aria-label={`Digit ${index + 1} of 6`}
+                                className="w-12 h-14 text-center text-xl font-semibold bg-gray-800 bg-opacity-50 text-white border border-gray-700 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 focus:outline-none transition-all duration-200"
                             />
                         ))}
                     </div>
 
-                    {error && (
-                        <p className="text-red-400 text-sm text-center font-medium">
-                            {error}
+                    {verifyError && (
+                        <p className="text-red-400 text-sm text-center font-medium" role="alert">
+                            {verifyError}
                         </p>
                     )}
 
-                    {/* Button */}
                     <motion.button
                         type="submit"
-                        whileHover={{ scale: 1.03 }}
-                        whileTap={{ scale: 0.97 }}
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
                         disabled={isLoading || !code.every((d) => d !== '')}
-                        className="w-full bg-emerald-500 hover:bg-emerald-600 transition-all duration-300 text-white font-semibold py-3 rounded-xl shadow-lg disabled:opacity-40 disabled:cursor-not-allowed"
+                        className="w-full py-3 px-4 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold rounded-lg shadow-lg hover:from-green-600 hover:to-emerald-700 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-40 disabled:cursor-not-allowed transition duration-200"
                     >
-                        {isLoading ? 'Verifying...' : 'Verify Email'}
+                        {isLoading ? (
+                            <Loader className="w-6 h-6 animate-spin mx-auto" />
+                        ) : (
+                            'Verify Email'
+                        )}
                     </motion.button>
+
+                    <button
+                        type="button"
+                        onClick={handleResend}
+                        disabled={cooldown > 0 || isLoading}
+                        className="w-full text-sm text-green-400 hover:text-green-300 disabled:text-gray-500 disabled:cursor-not-allowed transition-colors"
+                    >
+                        {cooldown > 0
+                            ? `Resend code in ${cooldown}s`
+                            : 'Resend verification code'}
+                    </button>
+
+                    <button
+                        type="button"
+                        onClick={handleLogout}
+                        className="w-full text-sm text-gray-400 hover:text-white transition-colors"
+                    >
+                        Use a different account
+                    </button>
                 </form>
-            </motion.div>
-        </div>
+            </div>
+        </motion.div>
     );
 };
 

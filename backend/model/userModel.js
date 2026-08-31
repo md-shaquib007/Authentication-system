@@ -42,10 +42,17 @@ const userSchema = new mongoose.Schema(
 
         verificationToken: {
             type: String,
+            unique: true,
+            sparse: true,
         },
 
         verificationTokenExpiresAt: {
             type: Date,
+        },
+
+        tokenVersion: {
+            type: Number,
+            default: 0,
         },
 
         loggedIn: {

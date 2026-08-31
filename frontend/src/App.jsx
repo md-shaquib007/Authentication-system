@@ -10,8 +10,8 @@ import { Toaster } from 'react-hot-toast';
 import { useEffect } from 'react';
 import { useAuthStore } from './store/authStore';
 import HomePage from './pages/HomePage';
+import NotFoundPage from './pages/NotFoundPage';
 
-// protect routes that require authentication
 const ProtectedRoutes = ({ children }) => {
     const { isAuthenticated, user } = useAuthStore();
 
@@ -26,7 +26,6 @@ const ProtectedRoutes = ({ children }) => {
     return children;
 };
 
-// redirect authenticated user to the home page
 const RedirectAuthenticatedUser = ({ children }) => {
     const { isAuthenticated, user } = useAuthStore();
 
@@ -134,19 +133,21 @@ function App() {
                     }
                 />
 
-                <Route
-                    path="/resetPassword/:token"
-                    element={
-                        <RedirectAuthenticatedUser>
-                            <ResetPasswordPage />
-                        </RedirectAuthenticatedUser>
-                    }
-                />
+                <Route path="/resetPassword/:token" element={<ResetPasswordPage />} />
 
-                <Route path="*" element={<Navigate to="/" replace />} />
+                <Route path="*" element={<NotFoundPage />} />
             </Routes>
 
-            <Toaster />
+            <Toaster
+                position="top-center"
+                toastOptions={{
+                    style: {
+                        background: '#1f2937',
+                        color: '#f9fafb',
+                        border: '1px solid #374151',
+                    },
+                }}
+            />
         </div>
     );
 }

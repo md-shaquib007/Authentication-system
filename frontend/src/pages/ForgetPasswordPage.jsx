@@ -4,21 +4,31 @@ import { useAuthStore } from '../store/authStore';
 import { ArrowLeft, Loader, Mail } from 'lucide-react';
 import Input from '../component/Input';
 import { Link } from 'react-router-dom';
+import { isValidEmail } from '../util/validation';
+import toast from 'react-hot-toast';
 
 const ForgetPasswordPage = () => {
     const [mail, setMail] = useState('');
     const [isSubmitted, setIsSubmitted] = useState(false);
+    const [emailError, setEmailError] = useState('');
 
-    const { isLoading, forgetPassword, error } = useAuthStore();
+    const { isLoading, forgetPassword, forgetPasswordError } = useAuthStore();
 
     const handleSubmit = async (e) => {
         e.preventDefault();
 
+        if (!isValidEmail(mail)) {
+            setEmailError('Enter a valid email address');
+            return;
+        }
+
+        setEmailError('');
+
         try {
             await forgetPassword(mail);
             setIsSubmitted(true);
-        } catch (error) {
-            console.log(error);
+        } catch {
+            toast.error('Failed to send reset link');
         }
     };
 
@@ -31,27 +41,34 @@ const ForgetPasswordPage = () => {
         >
             <div className="p-8">
                 <h2 className="text-3xl font-bold mb-6 text-center bg-gradient-to-r from-green-400 to-emerald-500 text-transparent bg-clip-text">
-                    Forget Password
+                    Forgot Password
                 </h2>
 
                 {!isSubmitted ? (
-                    <form onSubmit={handleSubmit}>
+                    <form onSubmit={handleSubmit} noValidate>
                         <p className="text-gray-300 mb-6 text-center">
-                            Enter your email address and we'll send you a link
-                            to reset your password.
+                            Enter your email and we'll send you a link to reset
+                            your password.
                         </p>
 
                         <Input
                             icon={Mail}
+                            label="Email"
+                            id="forgot-email"
                             type="email"
-                            placeholder="Enter your email"
+                            placeholder="you@example.com"
                             value={mail}
                             onChange={(e) => setMail(e.target.value)}
+                            error={emailError}
+                            autoComplete="email"
                         />
 
-                        {error && (
-                            <p className="text-red-500 font-semibold text-center text-sm mb-4">
-                                {error}
+                        {forgetPasswordError && (
+                            <p
+                                className="text-red-500 font-semibold text-center text-sm mb-4"
+                                role="alert"
+                            >
+                                {forgetPasswordError}
                             </p>
                         )}
 
@@ -59,7 +76,8 @@ const ForgetPasswordPage = () => {
                             whileHover={{ scale: 1.05 }}
                             whileTap={{ scale: 0.95 }}
                             type="submit"
-                            className="w-full py-3 px-4 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold rounded-lg shadow-lg hover:from-green-500 hover:to-emerald-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 focus:ring-offset-gray-900"
+                            disabled={isLoading}
+                            className="w-full py-3 px-4 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold rounded-lg shadow-lg hover:from-green-500 hover:to-emerald-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 focus:ring-offset-gray-900 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             {isLoading ? (
                                 <Loader className="size-6 animate-spin mx-auto" />
@@ -69,14 +87,14 @@ const ForgetPasswordPage = () => {
                         </motion.button>
                     </form>
                 ) : (
-                    <div>
+                    <div className="text-center">
                         <motion.div
                             initial={{ scale: 0 }}
                             animate={{ scale: 1 }}
                             transition={{
                                 type: 'spring',
                                 stiffness: 500,
-                                dumping: 30,
+                                damping: 30,
                             }}
                             className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-4"
                         >
@@ -84,8 +102,9 @@ const ForgetPasswordPage = () => {
                         </motion.div>
 
                         <p className="text-gray-300 mb-6">
-                            if an account exists for {mail} , you will receive a
-                            password reset link shortly
+                            If an account exists for{' '}
+                            <span className="text-green-400">{mail}</span>, you
+                            will receive a password reset link shortly.
                         </p>
                     </div>
                 )}
@@ -93,7 +112,7 @@ const ForgetPasswordPage = () => {
 
             <div className="px-8 py-4 bg-gray-900 bg-opacity-50 flex justify-center">
                 <Link
-                    to={'/login'}
+                    to="/login"
                     className="text-sm text-green-400 hover:underline flex items-center"
                 >
                     <ArrowLeft className="h-4 w-4 mr-2" /> Back to login
