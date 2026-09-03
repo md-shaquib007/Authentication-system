@@ -297,7 +297,8 @@ const resetPassword = async (req, res) => {
 
 const refreshServer = async (req, res) => {
     try {
-        const user = await User.findById(req.userId);
+        const query = User.findById(req.userId);
+        const user = query && query.lean ? await query.lean() : await query;
         if (!user) {
             return res.status(401).json({ message: 'User not found' });
         }
@@ -421,7 +422,8 @@ const refreshAccessToken = async (req, res) => {
             process.env.REFRESH_TOKEN_SECRET
         );
 
-        const user = await User.findById(decoded.id);
+        const query = User.findById(decoded.id);
+        const user = query && query.lean ? await query.lean() : await query;
         if (!user) {
             return res.status(401).json({ message: 'User not found' });
         }
