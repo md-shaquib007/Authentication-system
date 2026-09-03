@@ -7,6 +7,7 @@ export const API_URL =
         : '/api/auth');
 
 axios.defaults.withCredentials = true;
+axios.defaults.timeout = 15000;
 
 let isRefreshing = false;
 let refreshSubscribers = [];
