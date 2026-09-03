@@ -60,6 +60,20 @@ const userSchema = new mongoose.Schema(
             type: Boolean,
         },
 
+        failedLoginAttempts: {
+            type: Number,
+            default: 0,
+        },
+
+        lockUntil: {
+            type: Date,
+        },
+
+        verificationTokenAttempts: {
+            type: Number,
+            default: 0,
+        },
+
         loggedOutDate: {
             type: Date,
         },

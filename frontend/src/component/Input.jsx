@@ -39,9 +39,9 @@ const Input = ({
                     type={inputType}
                     aria-invalid={error ? 'true' : 'false'}
                     aria-describedby={error ? `${inputId}-error` : undefined}
-                    className={`w-full pl-10 ${showPasswordToggle ? 'pr-10' : 'pr-3'} py-2 bg-gray-800 bg-opacity-50 rounded-lg border ${
-                        error ? 'border-red-500' : 'border-gray-700'
-                    } focus:border-green-500 focus:ring-2 focus:ring-green-500 text-white placeholder-gray-400 transition duration-200`}
+                    className={`w-full pl-10 ${showPasswordToggle ? 'pr-10' : 'pr-3'} py-2.5 bg-gray-800/60 rounded-xl border ${
+                        error ? 'border-red-500/80 focus:border-red-500 focus:ring-red-500/30' : 'border-gray-700/80 focus:border-emerald-500 focus:ring-emerald-500/30'
+                    } focus:ring-4 text-white placeholder-gray-400/80 transition-all duration-200 outline-none`}
                 />
                 {showPasswordToggle && (
                     <button

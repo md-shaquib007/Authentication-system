@@ -27,7 +27,8 @@ const register = async (req, res) => {
                 .json({ message: `User already exists with email : ${email}` });
         }
 
-        const hashedPassword = await bcrypt.hash(password, 10);
+        const saltRounds = parseInt(process.env.SALT_ROUNDS, 10) || 10;
+        const hashedPassword = await bcrypt.hash(password, saltRounds);
 
         const verificationToken = crypto.randomInt(100000, 999999).toString();
 
@@ -154,11 +155,25 @@ const login = async (req, res) => {
             return res.status(401).json({ message: 'Invalid credentials' });
         }
 
+        if (user.lockUntil && user.lockUntil > new Date()) {
+            const minutesLeft = Math.ceil((user.lockUntil - new Date()) / 60000);
+            return res.status(423).json({
+                message: `Account is temporarily locked due to failed attempts. Try again in ${minutesLeft} minute(s).`,
+            });
+        }
+
         const checkPassword = await bcrypt.compare(password, user.password);
         if (!checkPassword) {
+            user.failedLoginAttempts = (user.failedLoginAttempts || 0) + 1;
+            if (user.failedLoginAttempts >= 5) {
+                user.lockUntil = new Date(Date.now() + 15 * 60 * 1000);
+            }
+            await user.save();
             return res.status(401).json({ message: 'Invalid credentials' });
         }
 
+        user.failedLoginAttempts = 0;
+        user.lockUntil = undefined;
         user.lastLogin = new Date();
         user.loggedIn = true;
         await user.save();
@@ -270,7 +285,8 @@ const resetPassword = async (req, res) => {
                 .json({ message: 'Invalid or expired token' });
         }
 
-        const hashedPassword = await bcrypt.hash(password, 10);
+        const saltRounds = parseInt(process.env.SALT_ROUNDS, 10) || 10;
+        const hashedPassword = await bcrypt.hash(password, saltRounds);
         user.password = hashedPassword;
         user.resetPasswordToken = undefined;
         user.resetPasswordTokenExpiresAt = undefined;
@@ -377,7 +393,8 @@ const changePassword = async (req, res) => {
                 .json({ message: 'Current password is incorrect' });
         }
 
-        user.password = await bcrypt.hash(newPassword, 10);
+        const saltRounds = parseInt(process.env.SALT_ROUNDS, 10) || 10;
+        user.password = await bcrypt.hash(newPassword, saltRounds);
         user.tokenVersion = (user.tokenVersion || 0) + 1;
         await user.save();
 

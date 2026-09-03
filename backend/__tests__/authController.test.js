@@ -58,6 +58,7 @@ describe('authController - login', () => {
         const mockUser = {
             email: 'test@example.com',
             password: 'hashedpassword',
+            save: jest.fn().mockResolvedValue(true),
         };
         User.findOne.mockResolvedValue(mockUser);
         bcrypt.compare.mockResolvedValue(false);

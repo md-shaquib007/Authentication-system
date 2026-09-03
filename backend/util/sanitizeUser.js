@@ -7,6 +7,9 @@ export const sanitizeUser = (user) => {
     delete doc.resetPasswordToken;
     delete doc.resetPasswordTokenExpiresAt;
     delete doc.tokenVersion;
+    delete doc.failedLoginAttempts;
+    delete doc.lockUntil;
+    delete doc.verificationTokenAttempts;
 
     return doc;
 };

@@ -29,7 +29,13 @@ app.get('/api/health', (req, res) => {
     });
 });
 
-app.use(helmet());
+app.use(
+    helmet({
+        contentSecurityPolicy: false,
+        crossOriginResourcePolicy: { policy: 'cross-origin' },
+        referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+    })
+);
 
 app.use(
     cors({
