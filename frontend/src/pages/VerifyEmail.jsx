@@ -1,9 +1,10 @@
 import { useRef, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Loader } from 'lucide-react';
+import { Loader, Mail } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { maskEmail } from '../util/validation';
+import Input from '../component/Input';
 import toast from 'react-hot-toast';
 
 const RESEND_COOLDOWN = 60;
@@ -19,6 +20,10 @@ const VerifyEmail = () => {
         useAuthStore();
 
     const targetEmail = user?.email || customEmail;
+
+    useEffect(() => {
+        inputRefs.current[0]?.focus();
+    }, []);
 
     useEffect(() => {
         if (cooldown <= 0) return;
@@ -141,18 +146,16 @@ const VerifyEmail = () => {
                     className="space-y-6"
                 >
                     {!user?.email && (
-                        <div>
-                            <label className="block text-xs font-medium text-gray-400 mb-1">
-                                Registered Email Address
-                            </label>
-                            <input
-                                type="email"
-                                placeholder="Enter your registered email"
-                                value={customEmail}
-                                onChange={(e) => setCustomEmail(e.target.value)}
-                                className="w-full px-4 py-2 bg-gray-800 bg-opacity-50 text-white border border-gray-700 rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none text-sm"
-                            />
-                        </div>
+                        <Input
+                            icon={Mail}
+                            label="Registered Email Address"
+                            id="verify-custom-email"
+                            type="email"
+                            placeholder="you@example.com"
+                            value={customEmail}
+                            onChange={(e) => setCustomEmail(e.target.value)}
+                            autoComplete="email"
+                        />
                     )}
                     <div
                         className="flex justify-center gap-3"
