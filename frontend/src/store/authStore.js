@@ -47,12 +47,13 @@ export const useAuthStore = create((set) => ({
         }
     },
 
-    verifyMail: async (code) => {
+    verifyMail: async (code, email) => {
         set({ isLoading: true, verifyError: null });
 
         try {
             const response = await axios.post(`${API_URL}/verifyEmail`, {
                 code,
+                ...(email ? { email } : {}),
             });
 
             const user = response?.data?.user;
@@ -74,11 +75,13 @@ export const useAuthStore = create((set) => ({
         }
     },
 
-    resendVerification: async () => {
+    resendVerification: async (email) => {
         set({ isLoading: true, verifyError: null });
 
         try {
-            const response = await axios.post(`${API_URL}/resendVerification`);
+            const response = await axios.post(`${API_URL}/resendVerification`, {
+                ...(email ? { email } : {}),
+            });
             set({ isLoading: false });
             return response.data;
         } catch (error) {

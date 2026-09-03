@@ -10,12 +10,15 @@ const RESEND_COOLDOWN = 60;
 
 const VerifyEmail = () => {
     const [code, setCode] = useState(['', '', '', '', '', '']);
+    const [customEmail, setCustomEmail] = useState('');
     const [cooldown, setCooldown] = useState(0);
     const inputRefs = useRef([]);
     const navigate = useNavigate();
 
     const { user, verifyError, isLoading, verifyMail, resendVerification, logout } =
         useAuthStore();
+
+    const targetEmail = user?.email || customEmail;
 
     useEffect(() => {
         if (cooldown <= 0) return;
@@ -69,7 +72,7 @@ const VerifyEmail = () => {
         }
 
         try {
-            await verifyMail(verificationCode);
+            await verifyMail(verificationCode, targetEmail);
             toast.success('Email verified successfully');
             navigate('/');
         } catch (err) {
@@ -80,8 +83,13 @@ const VerifyEmail = () => {
     const handleResend = async () => {
         if (cooldown > 0 || isLoading) return;
 
+        if (!targetEmail) {
+            toast.error('Please enter your email address to resend code');
+            return;
+        }
+
         try {
-            const data = await resendVerification();
+            const data = await resendVerification(targetEmail);
             toast.success(data?.message || 'New code sent');
             setCooldown(RESEND_COOLDOWN);
             setCode(['', '', '', '', '', '']);
@@ -108,12 +116,18 @@ const VerifyEmail = () => {
                     <h2 className="text-3xl font-bold mb-3 bg-gradient-to-r from-green-400 to-emerald-500 text-transparent bg-clip-text">
                         Verify Email
                     </h2>
-                    <p className="text-gray-400 text-sm">
-                        We sent a 6-digit code to{' '}
-                        <span className="text-green-400 font-medium">
-                            {maskEmail(user?.email)}
-                        </span>
-                    </p>
+                    {user?.email ? (
+                        <p className="text-gray-400 text-sm">
+                            We sent a 6-digit code to{' '}
+                            <span className="text-green-400 font-medium">
+                                {maskEmail(user.email)}
+                            </span>
+                        </p>
+                    ) : (
+                        <p className="text-gray-400 text-sm">
+                            Enter your registered email and the 6-digit verification code sent to your inbox.
+                        </p>
+                    )}
                     <p className="text-gray-500 text-xs mt-2">
                         Code expires in 24 hours
                     </p>
@@ -126,6 +140,20 @@ const VerifyEmail = () => {
                     }}
                     className="space-y-6"
                 >
+                    {!user?.email && (
+                        <div>
+                            <label className="block text-xs font-medium text-gray-400 mb-1">
+                                Registered Email Address
+                            </label>
+                            <input
+                                type="email"
+                                placeholder="Enter your registered email"
+                                value={customEmail}
+                                onChange={(e) => setCustomEmail(e.target.value)}
+                                className="w-full px-4 py-2 bg-gray-800 bg-opacity-50 text-white border border-gray-700 rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none text-sm"
+                            />
+                        </div>
+                    )}
                     <div
                         className="flex justify-center gap-3"
                         role="group"

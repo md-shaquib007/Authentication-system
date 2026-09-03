@@ -36,7 +36,7 @@ router.post('/logout', optionalAuth, logout);
 router.post(
     '/verifyEmail',
     verifyRateLimiter,
-    verifyJWT,
+    optionalAuth,
     validateBody(verifyEmailSchema),
     VerifyEmail
 );
@@ -58,7 +58,7 @@ router.post(
 router.post(
     '/resendVerification',
     verifyRateLimiter,
-    verifyJWT,
+    optionalAuth,
     resendVerification
 );
 

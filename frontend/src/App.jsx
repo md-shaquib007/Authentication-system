@@ -114,9 +114,7 @@ function App() {
                 <Route
                     path="/verifyEmail"
                     element={
-                        !isAuthenticated ? (
-                            <Navigate to="/login" replace />
-                        ) : user?.isVerified ? (
+                        user?.isVerified ? (
                             <Navigate to="/" replace />
                         ) : (
                             <VerifyEmail />

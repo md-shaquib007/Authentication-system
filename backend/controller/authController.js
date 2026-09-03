@@ -60,12 +60,7 @@ const register = async (req, res) => {
 
             await sendVerificationEmail(newUser.email, verificationToken);
         } catch (emailError) {
-            await User.findByIdAndDelete(newUser._id);
-            clearAuthCookies(res);
-            console.log(emailError);
-            return res.status(500).json({
-                message: 'Failed to send verification email. Please try again.',
-            });
+            console.error('Email error during registration:', emailError);
         }
 
         res.status(201).json({
@@ -89,14 +84,21 @@ const register = async (req, res) => {
 };
 
 const VerifyEmail = async (req, res) => {
-    const { code } = req.body;
+    const { code, email } = req.body;
 
     try {
-        const user = await User.findOne({
-            _id: req.userId,
+        let query = {
             verificationToken: code,
-            verificationTokenExpiresAt: { $gt: Date.now() },
-        });
+            verificationTokenExpiresAt: { $gt: new Date() },
+        };
+
+        if (req.userId) {
+            query._id = req.userId;
+        } else if (email) {
+            query.email = email.toLowerCase().trim();
+        }
+
+        const user = await User.findOne(query);
 
         if (!user) {
             return res
@@ -107,8 +109,22 @@ const VerifyEmail = async (req, res) => {
         user.isVerified = true;
         user.verificationToken = undefined;
         user.verificationTokenExpiresAt = undefined;
+        user.loggedIn = true;
 
         await user.save();
+
+        generateRefreshTokenAndSetCookie(
+            res,
+            user._id,
+            user.tokenVersion
+        );
+
+        const accessToken = generateAccessToken(
+            user._id,
+            user.email,
+            user.tokenVersion
+        );
+        setAccessTokenCookie(res, accessToken);
 
         try {
             await sendWelcomeEmail(user.email, user.username);
@@ -210,11 +226,7 @@ const forgetPassword = async (req, res) => {
             Date.now() + 1 * 60 * 60 * 1000
         );
 
-        if (!process.env.CLIENT_URL) {
-            return res.status(500).json({
-                message: 'Server configuration error',
-            });
-        }
+        const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
 
         user.resetPasswordToken = resetPasswordToken;
         user.resetPasswordTokenExpiresAt = resetPasswordTokenExpiresAt;
@@ -224,16 +236,10 @@ const forgetPassword = async (req, res) => {
         try {
             await sendPasswordResetEmail(
                 user.email,
-                `${process.env.CLIENT_URL}/resetPassword/${resetPasswordToken}`
+                `${clientUrl}/resetPassword/${resetPasswordToken}`
             );
         } catch (emailError) {
-            user.resetPasswordToken = undefined;
-            user.resetPasswordTokenExpiresAt = undefined;
-            await user.save();
-            console.log(emailError);
-            return res.status(500).json({
-                message: 'Failed to send reset email. Please try again.',
-            });
+            console.log('Error sending password reset email:', emailError);
         }
 
         res.status(200).json({
@@ -255,7 +261,7 @@ const resetPassword = async (req, res) => {
 
         const user = await User.findOne({
             resetPasswordToken: token,
-            resetPasswordTokenExpiresAt: { $gt: Date.now() },
+            resetPasswordTokenExpiresAt: { $gt: new Date() },
         });
 
         if (!user) {
@@ -309,11 +315,18 @@ const refreshServer = async (req, res) => {
 };
 
 const resendVerification = async (req, res) => {
+    const { email } = req.body;
+
     try {
-        const user = await User.findById(req.userId);
+        let user;
+        if (req.userId) {
+            user = await User.findById(req.userId);
+        } else if (email) {
+            user = await User.findOne({ email: email.toLowerCase().trim() });
+        }
 
         if (!user) {
-            return res.status(401).json({ message: 'User not found' });
+            return res.status(400).json({ message: 'User not found. Please log in or enter your registered email.' });
         }
 
         if (user.isVerified) {
@@ -328,7 +341,11 @@ const resendVerification = async (req, res) => {
 
         await user.save();
 
-        await sendVerificationEmail(user.email, verificationToken);
+        try {
+            await sendVerificationEmail(user.email, verificationToken);
+        } catch (emailError) {
+            console.error('Error resending verification email:', emailError);
+        }
 
         res.status(200).json({
             success: true,
